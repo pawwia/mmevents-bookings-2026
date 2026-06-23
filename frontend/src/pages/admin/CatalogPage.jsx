@@ -79,7 +79,7 @@ export default function CatalogPage({ type, title }) {
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Typography variant="h5">{title}</Typography>
         <Stack direction="row" spacing={1}>
-          {isPrintTemplate && (
+          {stripLike && (
             <Button variant="outlined" startIcon={<LibraryAddIcon />} onClick={() => setBulkOpen(true)}>
               Dodawanie masowe
             </Button>
@@ -145,7 +145,13 @@ export default function CatalogPage({ type, title }) {
       </Grid>
 
       {bulkOpen && (
-        <BulkTemplateUpload type={type} onClose={() => setBulkOpen(false)} onUploaded={load} />
+        <BulkTemplateUpload
+          type={type}
+          title={`Masowe dodawanie — ${title}`}
+          allowStrip={isPrintTemplate}
+          onClose={() => setBulkOpen(false)}
+          onUploaded={load}
+        />
       )}
 
       <ImagePreviewDialog open={!!imagePreview} src={imagePreview?.src} title={imagePreview?.title} onClose={() => setImagePreview(null)} />

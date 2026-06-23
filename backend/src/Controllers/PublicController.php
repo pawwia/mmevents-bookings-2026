@@ -92,8 +92,18 @@ class PublicController
         if ($date < date('Y-m-d')) {
             return Response::error('Data nie może być z przeszłości', 422);
         }
-        if (!CloudflareService::verify($request->query['cf_token'] ?? null, $ip)) {
-            return Response::error('Potwierdź, że nie jesteś robotem (Cloudflare).', 403);
+        // Turnstile: wystarczy raz przejść weryfikację — IP jest potem zaufane przez jakiś czas,
+        // więc kolejne sprawdzenia nie wymagają nowego tokenu (bez ponownego klikania checkboxa).
+        if (CloudflareService::enabled()) {
+            $token = $request->query['cf_token'] ?? null;
+            if ($token !== null && $token !== '') {
+                if (!CloudflareService::verify($token, $ip)) {
+                    return Response::error('Weryfikacja Cloudflare nie powiodła się — spróbuj ponownie.', 403);
+                }
+                CloudflareService::markVerified($ip);
+            } elseif (!CloudflareService::isVerified($ip)) {
+                return Response::error('Potwierdź, że nie jesteś robotem (Cloudflare).', 403);
+            }
         }
 
         // Zarejestruj sprawdzenie (10 dozwolonych; przekroczenie → blokada z eskalacją 20 min / 5 h).

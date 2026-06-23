@@ -45,10 +45,10 @@ const cropToStrip = (file) =>
  *  - wspólny przełącznik „przekrój na pasek" + konwersja do WebP (jak przy pojedynczym dodawaniu),
  *  - wszystko żyje we frontendzie do kliknięcia „Wgraj na serwer" — wcześniej nic nie jest zapisywane.
  */
-export default function BulkTemplateUpload({ type = 'print-templates', onClose, onUploaded }) {
+export default function BulkTemplateUpload({ type = 'print-templates', title = 'Masowe dodawanie', allowStrip = true, onClose, onUploaded }) {
   const fileRef = useRef(null);
   const [items, setItems] = useState([]); // { id, file, previewUrl, name, hashtags: [] }
-  const [cutStrip, setCutStrip] = useState(true);
+  const [cutStrip, setCutStrip] = useState(allowStrip);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [error, setError] = useState('');
@@ -72,10 +72,12 @@ export default function BulkTemplateUpload({ type = 'print-templates', onClose, 
         ...prev,
         { id, file, previewUrl: URL.createObjectURL(file), stripUrl: null, name: file.name.replace(/\.[^.]+$/, ''), hashtags: [] },
       ]);
-      // Podgląd przyciętego paska wyliczamy asynchronicznie.
-      cropToStrip(file).then((stripUrl) => {
-        if (stripUrl) setItems((prev) => prev.map((it) => (it.id === id ? { ...it, stripUrl } : it)));
-      });
+      // Podgląd przyciętego paska tylko tam, gdzie cięcie ma sens (szablony wydruków).
+      if (allowStrip) {
+        cropToStrip(file).then((stripUrl) => {
+          if (stripUrl) setItems((prev) => prev.map((it) => (it.id === id ? { ...it, stripUrl } : it)));
+        });
+      }
     });
   };
 
@@ -116,11 +118,11 @@ export default function BulkTemplateUpload({ type = 'print-templates', onClose, 
         const it = items[i];
         const form = new FormData();
         form.append('file', it.file);
-        form.append('cut_strip', cutStrip ? '1' : '0');
+        form.append('cut_strip', allowStrip && cutStrip ? '1' : '0');
         form.append('to_webp', '1');
         const { data } = await api.post('/admin/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } });
         await api.post(`/admin/catalog/${type}`, {
-          name: it.name || 'Szablon',
+          name: it.name || 'Pozycja',
           image_url: `${API_BASE}${data.url}`,
           hashtags: it.hashtags,
           is_active: 1,
@@ -138,7 +140,7 @@ export default function BulkTemplateUpload({ type = 'print-templates', onClose, 
 
   return (
     <Dialog open onClose={busy ? undefined : onClose} fullWidth maxWidth="md">
-      <DialogTitle>Masowe dodawanie szablonów wydruków</DialogTitle>
+      <DialogTitle>{title}</DialogTitle>
       <DialogContent dividers>
         <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2, flexWrap: 'wrap' }}>
           <Button variant="outlined" startIcon={<AddPhotoIcon />} onClick={() => fileRef.current?.click()} disabled={busy}>
@@ -155,10 +157,12 @@ export default function BulkTemplateUpload({ type = 'print-templates', onClose, 
               e.target.value = '';
             }}
           />
-          <FormControlLabel
-            control={<Switch checked={cutStrip} onChange={(e) => setCutStrip(e.target.checked)} disabled={busy} />}
-            label="Przekrój na pojedynczy pasek (paski fotobudkowe)"
-          />
+          {allowStrip && (
+            <FormControlLabel
+              control={<Switch checked={cutStrip} onChange={(e) => setCutStrip(e.target.checked)} disabled={busy} />}
+              label="Przekrój na pojedynczy pasek (paski fotobudkowe)"
+            />
+          )}
           <Typography variant="caption" color="text.secondary">
             Pliki konwertowane do WebP. Nic nie trafia na serwer, dopóki nie klikniesz „Wgraj na serwer".
           </Typography>
@@ -174,7 +178,7 @@ export default function BulkTemplateUpload({ type = 'print-templates', onClose, 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <Box
                   component="img"
-                  src={cutStrip && it.stripUrl ? it.stripUrl : it.previewUrl}
+                  src={allowStrip && cutStrip && it.stripUrl ? it.stripUrl : it.previewUrl}
                   alt={it.name}
                   sx={{ width: 120, height: 160, objectFit: 'contain', borderRadius: 1, bgcolor: '#EEE', flexShrink: 0 }}
                 />

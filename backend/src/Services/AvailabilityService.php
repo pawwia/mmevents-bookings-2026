@@ -47,13 +47,18 @@ final class AvailabilityService
         }, $rows);
     }
 
-    /** Urlop/blokada obejmująca dany dzień (lub null). */
+    /** Urlop/blokada obejmująca dany dzień (lub null). Odporna na brak tabeli (przed migracją). */
     public static function blackoutFor(string $date): ?array
     {
-        return Database::selectOne(
-            'SELECT * FROM blackout_dates WHERE ? BETWEEN start_date AND end_date ORDER BY start_date LIMIT 1',
-            [$date]
-        );
+        try {
+            return Database::selectOne(
+                'SELECT * FROM blackout_dates WHERE ? BETWEEN start_date AND end_date ORDER BY start_date LIMIT 1',
+                [$date]
+            );
+        } catch (\Throwable $e) {
+            error_log('blackoutFor: ' . $e->getMessage());
+            return null;
+        }
     }
 
     /**

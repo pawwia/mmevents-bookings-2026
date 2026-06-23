@@ -21,6 +21,8 @@ export default function Step1Date() {
   const [bookableYears, setBookableYears] = useState(null); // null = jeszcze ładowane
   const [cfToken, setCfToken] = useState('');
   const [cfRefresh, setCfRefresh] = useState(0);
+  const [pendingDate, setPendingDate] = useState(null); // data oczekująca na token Cloudflare
+  const [humanVerified, setHumanVerified] = useState(false); // raz przeszliśmy Turnstile w tej sesji
   const captchaEnabled = useSettingsStore((s) => !!s.settings['security.turnstile_site_key']);
 
   useEffect(() => {
@@ -33,27 +35,53 @@ export default function Step1Date() {
   const isYearBookable = (date) => !!bookableYears && bookableYears.includes(date.year());
   const maxDate = bookableYears?.length ? dayjs(`${Math.max(...bookableYears)}-12-31`) : undefined;
 
-  const handleSelect = async (value) => {
+  const runCheck = useCallback(
+    async (date, token) => {
+      setLoading(true);
+      setError('');
+      try {
+        const { data } = await api.get('/availability', { params: { date, cf_token: token || undefined } });
+        set({ availability: data });
+        setHumanVerified(true); // serwer zaufał temu IP — kolejne sprawdzenia bez nowego tokenu
+        trackEventOnce('CheckAvailability', { available: !!data.available });
+      } catch (e) {
+        if (e?.response?.status === 403) {
+          // Wygasła weryfikacja / brak tokenu → poproś Cloudflare o świeży i ponów po jego przejściu.
+          setHumanVerified(false);
+          setCfToken('');
+          setPendingDate(date);
+          setCfRefresh((n) => n + 1);
+        } else {
+          setError(apiError(e));
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [set]
+  );
+
+  const handleSelect = (value) => {
     const date = value.format('YYYY-MM-DD');
     set({ eventDate: date, availability: null });
     setError('');
-    if (captchaEnabled && !cfToken) {
-      setError('Najpierw potwierdź, że nie jesteś robotem (zaznacz pole poniżej kalendarza).');
+    // Pierwsze sprawdzenie wymaga przejścia Cloudflare (auto lub ręczne) — czekamy na token.
+    if (captchaEnabled && !cfToken && !humanVerified) {
+      setPendingDate(date);
       return;
     }
-    setLoading(true);
-    try {
-      const { data } = await api.get('/availability', { params: { date, cf_token: cfToken } });
-      set({ availability: data });
-      // Liczone tylko raz na sesję — nawet jeśli klient sprawdza wiele terminów.
-      trackEventOnce('CheckAvailability', { available: !!data.available });
-    } catch (e) {
-      setError(apiError(e));
-    } finally {
-      setLoading(false);
-      if (captchaEnabled) setCfRefresh((n) => n + 1); // token jednorazowy — odśwież po użyciu
-    }
+    setPendingDate(null);
+    runCheck(date, cfToken);
   };
+
+  // Gdy token przyjdzie (auto lub po ręcznym kliknięciu checkboxa), dokończ oczekujące sprawdzenie.
+  useEffect(() => {
+    if (cfToken && pendingDate) {
+      const date = pendingDate;
+      setPendingDate(null);
+      runCheck(date, cfToken);
+    }
+  }, [cfToken, pendingDate, runCheck]);
 
   const onToken = useCallback((t) => setCfToken(t), []);
   const remaining = availability?.remaining_checks;
@@ -88,6 +116,11 @@ export default function Step1Date() {
       <Box sx={{ display: 'flex', justifyContent: 'center' }}>
         <Turnstile onToken={onToken} refreshKey={cfRefresh} action="availability" />
       </Box>
+      {pendingDate && !loading && (
+        <Alert severity="info" sx={{ mt: 1 }}>
+          Potwierdź weryfikację Cloudflare powyżej — sprawdzimy wybrany termin automatycznie.
+        </Alert>
+      )}
       {loading && (
         <Box sx={{ textAlign: 'center' }}>
           <CircularProgress size={28} />
