@@ -1,5 +1,9 @@
+import { useState } from 'react';
 import { Outlet, Link as RouterLink, useLocation } from 'react-router-dom';
-import { AppBar, Toolbar, Box, Button, Container, Tabs, Tab, Link } from '@mui/material';
+import {
+  AppBar, Toolbar, Box, Button, Container, Tabs, Tab, Link, IconButton, Menu, MenuItem, Divider,
+} from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
 import Logo from './Logo';
 import { useAuthStore } from '../../store/authStore';
 
@@ -7,6 +11,8 @@ export default function ClientLayout() {
   const { logout, user } = useAuthStore();
   const location = useLocation();
   const tab = location.pathname.startsWith('/konto/profil') ? '/konto/profil' : '/konto';
+  const [menuEl, setMenuEl] = useState(null);
+  const closeMenu = () => setMenuEl(null);
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
@@ -15,14 +21,31 @@ export default function ClientLayout() {
           <RouterLink to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
             <Logo />
           </RouterLink>
-          <Tabs value={tab} sx={{ ml: 4, flexGrow: 1 }}>
+
+          {/* Desktop: zakładki + przyciski */}
+          <Tabs value={tab} sx={{ ml: 4, flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
             <Tab label="Moje rezerwacje" value="/konto" component={RouterLink} to="/konto" />
             <Tab label="Mój profil" value="/konto/profil" component={RouterLink} to="/konto/profil" />
           </Tabs>
-          <Button component={RouterLink} to="/rezerwacja" variant="contained" sx={{ mr: 2 }}>
-            Nowa rezerwacja
-          </Button>
-          <Button onClick={logout}>Wyloguj ({user?.first_name})</Button>
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center' }}>
+            <Button component={RouterLink} to="/rezerwacja" variant="contained" sx={{ mr: 2 }}>
+              Nowa rezerwacja
+            </Button>
+            <Button onClick={logout}>Wyloguj ({user?.first_name})</Button>
+          </Box>
+
+          {/* Mobile: menu hamburger */}
+          <Box sx={{ flexGrow: 1, display: { md: 'none' } }} />
+          <IconButton sx={{ display: { md: 'none' } }} onClick={(e) => setMenuEl(e.currentTarget)} aria-label="Menu">
+            <MenuIcon />
+          </IconButton>
+          <Menu anchorEl={menuEl} open={!!menuEl} onClose={closeMenu}>
+            <MenuItem component={RouterLink} to="/konto" onClick={closeMenu}>Moje rezerwacje</MenuItem>
+            <MenuItem component={RouterLink} to="/konto/profil" onClick={closeMenu}>Mój profil</MenuItem>
+            <MenuItem component={RouterLink} to="/rezerwacja" onClick={closeMenu}>Nowa rezerwacja</MenuItem>
+            <Divider />
+            <MenuItem onClick={() => { closeMenu(); logout(); }}>Wyloguj</MenuItem>
+          </Menu>
         </Toolbar>
       </AppBar>
       <Container maxWidth="md" sx={{ py: 4, flexGrow: 1 }}>

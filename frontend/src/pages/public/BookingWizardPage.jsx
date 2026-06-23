@@ -1,4 +1,4 @@
-import { Paper, Stepper, Step, StepLabel, Box, Typography, useMediaQuery } from '@mui/material';
+import { Paper, Stepper, Step, StepLabel, Box, Typography, LinearProgress, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useBookingWizard } from '../../store/bookingWizardStore';
 import Step1Date from '../../components/booking/Step1Date';
@@ -27,14 +27,23 @@ export default function BookingWizardPage() {
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
         Kilka prostych kroków i termin jest Twój. ✨
       </Typography>
-      <Paper sx={{ p: { xs: 2, md: 4 } }}>
-        <Stepper activeStep={step} alternativeLabel={!compact} sx={{ mb: 4 }} orientation="horizontal">
-          {STEPS.map((label, i) => (
-            <Step key={label}>
-              <StepLabel>{compact ? (i === step ? label : '') : label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+      <Paper sx={{ p: { xs: 2, md: 4 }, overflow: 'hidden' }}>
+        {compact ? (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Krok {step + 1} z {STEPS.length}: <strong>{STEPS[step]}</strong>
+            </Typography>
+            <LinearProgress variant="determinate" value={((step + 1) / STEPS.length) * 100} sx={{ borderRadius: 1, height: 6 }} />
+          </Box>
+        ) : (
+          <Stepper activeStep={step} alternativeLabel sx={{ mb: 4 }}>
+            {STEPS.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        )}
         <StepComponent />
       </Paper>
     </Box>
