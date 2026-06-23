@@ -1,0 +1,24 @@
+{
+    "name": "mmevent/booking-api",
+    "description": "MMEvent — REST API systemu rezerwacji fotolustra",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.3",
+        "ext-pdo": "*",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "ext-openssl": "*",
+        "setasign/fpdi": "^2.6",
+        "setasign/fpdf": "^1.9",
+        "dompdf/dompdf": "^3.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

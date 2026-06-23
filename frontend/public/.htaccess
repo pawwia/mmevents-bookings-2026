@@ -1,0 +1,14 @@
+# SPA fallback dla React Router — frontend w katalogu głównym bookings.mmevents.pl
+# (kopiowany automatycznie do dist/ podczas npm run build)
+RewriteEngine On
+
+# Nie ruszaj backendu ani cronów
+RewriteCond %{REQUEST_URI} ^/(backend|cron)(/|$)
+RewriteRule ^ - [L]
+
+# Istniejące pliki (assets, obrazy) serwuj bezpośrednio
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Reszta → index.html (React Router)
+RewriteRule ^ index.html [L]

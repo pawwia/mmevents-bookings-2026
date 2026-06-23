@@ -1,0 +1,22 @@
+# Zależności
+node_modules/
+vendor/
+
+# Build frontendu
+frontend/dist/
+
+# Sekrety / konfiguracja środowiska (commitujemy tylko .env.example)
+.env
+*.local
+
+# Dane runtime (nie wersjonujemy)
+backend/storage/logs/*
+!backend/storage/logs/.gitkeep
+backend/public/uploads/
+
+# System / edytor
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/

@@ -1,0 +1,22 @@
+# MMEvent — API + frontend React na jednej domenie (bookings.mmevents.pl)
+Options -Indexes
+RewriteEngine On
+
+# Nagłówek Authorization bywa wycinany na hostingach współdzielonych
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# Istniejące pliki (uploads/, assets/ z builda Vite, obrazy) serwuj bezpośrednio
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Żądania API i webhooków → backend (front controller)
+RewriteRule ^api(/|$) index.php [QSA,L]
+
+# Pozostałe ścieżki → aplikacja React (SPA fallback dla React Router)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.html [L]
+
+<FilesMatch "\.(env|sql|md|json|lock)$">
+  Require all denied
+</FilesMatch>

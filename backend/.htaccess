@@ -1,0 +1,8 @@
+# Ochrona katalogu backendu (gdy webroot domeny wskazuje wyżej niż backend/public).
+# Publicznie dostępny ma być wyłącznie katalog public/ (oraz cron/ — chroniony sekretem).
+RewriteEngine On
+RewriteRule ^(src|bin|storage|vendor|database)(/|$) - [F,L]
+
+<FilesMatch "\.(env|json|lock|md|sql|example)$">
+  Require all denied
+</FilesMatch>
