@@ -200,7 +200,7 @@ final class ChatService
              WHERE m.notified = 0
              GROUP BY t.id, t.subject, t.booking_id"
         );
-        $frontend = rtrim((string) SettingsService::get('app.frontend_url', ''), '/');
+        $frontend = SettingsService::frontendUrl();
         $footer = nl2br((string) SettingsService::get('company.email_footer', ''));
         $sent = 0;
 

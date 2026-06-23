@@ -22,7 +22,7 @@ class AuthController
     {
         $token = bin2hex(random_bytes(32));
         Database::update('users', ['verification_token' => $token], 'id = ?', [$user['id']]);
-        $link = rtrim((string) SettingsService::get('app.frontend_url', ''), '/') . '/weryfikacja/' . $token;
+        $link = SettingsService::frontendUrl() . '/weryfikacja/' . $token;
         MailerService::queueEmail('email_verification', $user['email'], $user['first_name'] ?? null, [
             'imie' => $user['first_name'] ?: 'Kliencie',
             'link_weryfikacji' => $link,

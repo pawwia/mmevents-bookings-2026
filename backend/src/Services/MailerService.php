@@ -72,7 +72,7 @@ final class MailerService
         // Logo: absolutny URL (klienci poczty nie ładują ścieżek względnych)
         $logo = (string) (SettingsService::get('appearance.logo_url') ?: SettingsService::get('company.logo_url', ''));
         if ($logo !== '' && !preg_match('#^https?://#', $logo)) {
-            $logo = rtrim((string) SettingsService::get('app.frontend_url', ''), '/') . '/' . ltrim($logo, '/');
+            $logo = SettingsService::frontendUrl() . '/' . ltrim($logo, '/');
         }
         $header = $logo !== '' && !str_contains($logo, 'placeholder')
             ? '<img src="' . htmlspecialchars($logo) . '" alt="' . $name . '" height="84" style="display:block;border:0;height:84px;max-height:84px;width:auto">'
@@ -143,7 +143,7 @@ final class MailerService
             'kwota' => number_format((float) $booking['total_price'], 2, ',', ' '),
             'zadatek' => number_format((float) $booking['deposit_amount'], 2, ',', ' '),
             'numer_konta' => SettingsService::get('finance.bank_account', ''),
-            'link_panelu' => rtrim((string) SettingsService::get('app.frontend_url', ''), '/') . '/konto',
+            'link_panelu' => SettingsService::frontendUrl() . '/konto',
             'dni_blokady' => (string) SettingsService::int('booking.personalization_lock_days', 3),
             'data_blokady' => date('d.m.Y', strtotime($booking['event_date'] . ' -' . SettingsService::int('booking.personalization_lock_days', 3) . ' days')),
         ];

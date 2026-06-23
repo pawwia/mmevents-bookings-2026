@@ -193,7 +193,7 @@ final class SigningService
         $vars = [
             'imie' => $booking['first_name'],
             'numer_umowy' => $contract['number'],
-            'link_panelu' => rtrim((string) SettingsService::get('app.frontend_url', ''), '/') . '/konto/rezerwacje/' . $booking['id'],
+            'link_panelu' => SettingsService::frontendUrl() . '/konto/rezerwacje/' . $booking['id'],
             'stopka' => nl2br((string) SettingsService::get('company.email_footer', '')),
         ];
         MailerService::queueEmail('contract_awaiting_client', $booking['email'], $booking['first_name'], $vars, (int) $booking['id']);

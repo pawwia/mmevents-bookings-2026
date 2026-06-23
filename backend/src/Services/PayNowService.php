@@ -36,7 +36,7 @@ final class PayNowService
             'externalId' => 'booking-' . $booking['id'] . '-' . time(),
             'description' => 'Zadatek — rezerwacja #' . $booking['id'] . ' (' . $booking['event_date'] . ')',
             'buyer' => ['email' => $user['email']],
-            'continueUrl' => rtrim((string) SettingsService::get('app.frontend_url', ''), '/') . '/konto/rezerwacje/' . $booking['id'],
+            'continueUrl' => SettingsService::frontendUrl() . '/konto/rezerwacje/' . $booking['id'],
         ], JSON_UNESCAPED_UNICODE);
 
         $idempotencyKey = bin2hex(random_bytes(16));

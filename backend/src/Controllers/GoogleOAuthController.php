@@ -37,7 +37,7 @@ class GoogleOAuthController
      */
     public function driveCallback(Request $request): Response
     {
-        $frontend = rtrim((string) SettingsService::get('app.frontend_url', Config::get('FRONTEND_URL', '')), '/');
+        $frontend = SettingsService::frontendUrl();
         $error = (string) ($request->query['error'] ?? '');
         $code = (string) ($request->query['code'] ?? '');
         $state = (string) ($request->query['state'] ?? '');

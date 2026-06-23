@@ -100,7 +100,7 @@ class OfferController
         if (empty($offer['email'])) {
             return Response::error('Oferta nie ma adresu e-mail klienta', 422);
         }
-        $link = rtrim((string) SettingsService::get('app.frontend_url', ''), '/') . '/oferta/' . $offer['token'];
+        $link = SettingsService::frontendUrl() . '/oferta/' . $offer['token'];
         MailerService::queueEmail('offer_ready', $offer['email'], $offer['client_name'], [
             'imie' => explode(' ', trim($offer['client_name']))[0],
             'data_imprezy' => $offer['event_date'] ? date('d.m.Y', strtotime($offer['event_date'])) : 'do ustalenia',
@@ -350,7 +350,7 @@ class OfferController
             $variant['items'] = json_decode((string) $variant['items'], true) ?: [];
             return $variant;
         }, Database::select('SELECT * FROM offer_variants WHERE offer_id = ? ORDER BY sort_order, id', [$offerId]));
-        $offer['link'] = rtrim((string) SettingsService::get('app.frontend_url', ''), '/') . '/oferta/' . $offer['token'];
+        $offer['link'] = SettingsService::frontendUrl() . '/oferta/' . $offer['token'];
         return $offer;
     }
 }

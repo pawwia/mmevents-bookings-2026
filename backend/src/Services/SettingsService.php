@@ -4,12 +4,40 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Core\Config;
 use App\Core\Database;
 
 /** Ustawienia systemowe z bazy + audyt każdej zmiany (kto / kiedy / stara / nowa wartość). */
 final class SettingsService
 {
     private static ?array $cache = null;
+
+    /**
+     * Bazowy adres frontendu do linków w mailach (bez końcowego „/").
+     *
+     * Kolejność: jawnie skonfigurowany, „prawdziwy" adres > host bieżącego żądania
+     * (frontend i backend są na jednej domenie w produkcji) > ustawienie/ENV jako fallback
+     * dla lokalnego developmentu i CLI. Dzięki temu pozostawiony domyślny `localhost`
+     * nie trafia do maili wysłanych z realnej domeny.
+     */
+    public static function frontendUrl(): string
+    {
+        $configured = rtrim(trim((string) self::get('app.frontend_url', '')), '/');
+        $configuredIsLocal = $configured === ''
+            || (bool) preg_match('#^https?://(localhost|127\.0\.0\.1)(:\d+)?$#', $configured);
+
+        if (!$configuredIsLocal) {
+            return $configured;
+        }
+
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
+        if ($host !== '' && !preg_match('#^(localhost|127\.0\.0\.1)(:\d+)?$#', $host)) {
+            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            return "$scheme://$host";
+        }
+
+        return $configured !== '' ? $configured : rtrim(trim((string) Config::get('FRONTEND_URL', '')), '/');
+    }
 
     public static function get(string $key, ?string $default = null): ?string
     {

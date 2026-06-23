@@ -117,7 +117,7 @@ final class BookingService
         }
         $guests = (int) ($booking['guests_count'] ?? 0);
         $individual = (bool) ($booking['requires_individual_quote'] ?? false);
-        $crmLink = rtrim((string) SettingsService::get('app.frontend_url', ''), '/') . '/admin/rezerwacje/' . $bookingId;
+        $crmLink = SettingsService::frontendUrl() . '/admin/rezerwacje/' . $bookingId;
 
         MailerService::queueEmail('admin_new_booking', $ownerEmail, SettingsService::get('company.name', 'MMEvents'), [
             'booking_id' => (string) $bookingId,
