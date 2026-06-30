@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
+use App\Services\ActivityLog;
 use App\Services\BookingService;
 use App\Services\PayNowService;
 
@@ -28,8 +29,10 @@ class WebhookController
         if ($status === 'CONFIRMED' && $payment['status'] !== 'paid') {
             Database::update('payments', ['status' => 'paid', 'paid_at' => date('Y-m-d H:i:s')], 'id = ?', [$payment['id']]);
             BookingService::changeStatus((int) $payment['booking_id'], 'confirmed', null, 'Zadatek opłacony (PayNow)');
+            ActivityLog::record('payment_confirmed', ['booking_id' => $payment['booking_id'], 'detail' => 'PayNow potwierdził zadatek ' . $payment['amount'] . ' zł']);
         } elseif (in_array($status, ['REJECTED', 'ERROR', 'EXPIRED'], true)) {
             Database::update('payments', ['status' => 'failed'], 'id = ?', [$payment['id']]);
+            ActivityLog::record('payment_failed', ['booking_id' => $payment['booking_id'], 'detail' => 'PayNow status: ' . $status]);
         }
         return Response::json(['ok' => true]);
     }

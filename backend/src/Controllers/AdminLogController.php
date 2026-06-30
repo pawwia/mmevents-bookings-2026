@@ -41,6 +41,32 @@ class AdminLogController
         return Response::json($this->queueRows('sms_queue', $request->query['status'] ?? null));
     }
 
+    /**
+     * Dziennik aktywności serwisu — logowania, resety hasła, blokady, personalizacja…
+     * Filtry: ?event=login_fail (konkretne zdarzenie) oraz ?q=fraza (e-mail / IP / opis).
+     */
+    public function activity(Request $request): Response
+    {
+        $where = [];
+        $params = [];
+        if (!empty($request->query['event'])) {
+            $where[] = 'a.event = ?';
+            $params[] = $request->query['event'];
+        }
+        if (!empty($request->query['q'])) {
+            $like = '%' . $request->query['q'] . '%';
+            $where[] = '(a.email LIKE ? OR a.ip LIKE ? OR a.detail LIKE ?)';
+            array_push($params, $like, $like, $like);
+        }
+        $sql = 'SELECT a.id, a.event, a.email, a.ip, a.booking_id, a.detail, a.created_at,
+                       u.first_name, u.last_name
+                FROM activity_log a
+                LEFT JOIN users u ON u.id = a.user_id'
+            . ($where ? ' WHERE ' . implode(' AND ', $where) : '')
+            . ' ORDER BY a.id DESC LIMIT 200';
+        return Response::json(['rows' => Database::select($sql, $params)]);
+    }
+
     /** Log systemowy (php-error.log lub cron.log) — ostatnie linie. */
     public function systemLog(Request $request): Response
     {

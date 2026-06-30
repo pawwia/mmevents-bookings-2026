@@ -8,6 +8,7 @@ use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Validator;
+use App\Services\ActivityLog;
 use App\Services\BookingService;
 use App\Services\ContractService;
 use App\Services\MailerService;
@@ -312,6 +313,8 @@ class OfferController
 
         // Powiadomienie właściciela o nowej rezerwacji (z akceptacji oferty)
         BookingService::notifyOwner($bookingId);
+
+        ActivityLog::record('offer_accepted', ['user_id' => $request->userId(), 'booking_id' => $bookingId, 'ip' => BookingController::clientIp(), 'detail' => 'akceptacja oferty — ' . $price . ' zł']);
 
         return Response::json([
             'booking_id' => $bookingId,

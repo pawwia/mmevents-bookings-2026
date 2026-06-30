@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
+use App\Services\ActivityLog;
 use App\Services\BookingService;
 use App\Services\ChatService;
 
@@ -43,6 +44,7 @@ class ChatController
         } catch (\Throwable $e) {
             return Response::error($e->getMessage(), 422);
         }
+        ActivityLog::record('chat_message', ['user_id' => $request->userId(), 'booking_id' => $booking['id'], 'ip' => BookingController::clientIp(), 'detail' => 'klient — nowy wątek: ' . $subject]);
         return Response::json(['thread_id' => $threadId], 201);
     }
 
@@ -71,6 +73,7 @@ class ChatController
         } catch (\Throwable $e) {
             return Response::error($e->getMessage(), 422);
         }
+        ActivityLog::record('chat_message', ['user_id' => $request->userId(), 'booking_id' => $thread['booking_id'] ?? null, 'ip' => BookingController::clientIp(), 'detail' => 'klient — odpowiedź w wątku']);
         return Response::json(['ok' => true], 201);
     }
 
@@ -111,6 +114,7 @@ class ChatController
         } catch (\Throwable $e) {
             return Response::error($e->getMessage(), 422);
         }
+        ActivityLog::record('chat_message_admin', ['user_id' => $request->userId(), 'booking_id' => $booking['id'], 'ip' => BookingController::clientIp(), 'detail' => 'admin — nowy wątek: ' . $subject]);
         return Response::json(['thread_id' => $threadId], 201);
     }
 
@@ -139,6 +143,7 @@ class ChatController
         } catch (\Throwable $e) {
             return Response::error($e->getMessage(), 422);
         }
+        ActivityLog::record('chat_message_admin', ['user_id' => $request->userId(), 'booking_id' => $thread['booking_id'] ?? null, 'ip' => BookingController::clientIp(), 'detail' => 'admin — odpowiedź w wątku']);
         return Response::json(['ok' => true], 201);
     }
 

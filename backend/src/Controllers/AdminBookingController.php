@@ -8,6 +8,7 @@ use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Validator;
+use App\Services\ActivityLog;
 use App\Services\BookingService;
 use App\Services\GoogleCalendarService;
 use App\Services\MailerService;
@@ -122,6 +123,7 @@ class AdminBookingController
             'changed_by' => $request->userId(),
             'note' => sprintf('%s: %s zł (przelew)', $label, number_format(round((float) $amount, 2), 2, ',', ' ')),
         ]);
+        ActivityLog::record('admin_payment_added', ['user_id' => $request->userId(), 'booking_id' => $id, 'ip' => BookingController::clientIp(), 'detail' => sprintf('%s %s zł (przelew)', $label, number_format(round((float) $amount, 2), 2, ',', ' '))]);
         return $this->show($request);
     }
 
@@ -143,6 +145,7 @@ class AdminBookingController
             'changed_by' => $request->userId(),
             'note' => sprintf('Usunięto wpłatę %s zł', number_format((float) $payment['amount'], 2, ',', ' ')),
         ]);
+        ActivityLog::record('admin_payment_deleted', ['user_id' => $request->userId(), 'booking_id' => $id, 'ip' => BookingController::clientIp(), 'detail' => sprintf('usunięto wpłatę %s zł', number_format((float) $payment['amount'], 2, ',', ' '))]);
         return $this->show($request);
     }
 
@@ -269,6 +272,7 @@ class AdminBookingController
             $request->input('note')
         );
         $booking['status_label'] = BookingService::STATUSES[$booking['status']];
+        ActivityLog::record('admin_status_change', ['user_id' => $request->userId(), 'booking_id' => (int) $request->params['id'], 'ip' => BookingController::clientIp(), 'detail' => 'status → ' . ($booking['status_label'] ?? $newStatus)]);
         return Response::json($booking);
     }
 
@@ -305,6 +309,7 @@ class AdminBookingController
         $note = sprintf('Zadatek wpłacony: %s zł (przelew)', number_format($amount, 2, ',', ' '));
         $booking = BookingService::changeStatus($id, 'confirmed', $request->userId(), $note);
         $booking['status_label'] = BookingService::STATUSES[$booking['status']];
+        ActivityLog::record('admin_deposit_paid', ['user_id' => $request->userId(), 'booking_id' => $id, 'ip' => BookingController::clientIp(), 'detail' => sprintf('zadatek %s zł oznaczony jako wpłacony', number_format($amount, 2, ',', ' '))]);
         return Response::json($booking);
     }
 
@@ -338,6 +343,7 @@ class AdminBookingController
         ]);
         $booking = BookingService::find($id);
         $booking['status_label'] = BookingService::STATUSES[$booking['status']];
+        ActivityLog::record('admin_deposit_unpaid', ['user_id' => $request->userId(), 'booking_id' => $id, 'ip' => BookingController::clientIp(), 'detail' => 'cofnięto oznaczenie zadatku']);
         return Response::json($booking);
     }
 
@@ -405,6 +411,7 @@ class AdminBookingController
             'gallery_sent_at' => date('Y-m-d H:i:s'),
             'ask_review' => $askReview ? 1 : 0,
         ], 'id = ?', [$id]);
+        ActivityLog::record('admin_gallery_sent', ['user_id' => $request->userId(), 'email' => $booking['email'] ?? null, 'booking_id' => $id, 'ip' => BookingController::clientIp(), 'detail' => 'wysłano galerię' . ($askReview ? ' + prośba o opinię' : '')]);
         return Response::json(['ok' => true]);
     }
 
@@ -424,6 +431,7 @@ class AdminBookingController
             MailerService::bookingVars($booking, $booking),
             $id
         );
+        ActivityLog::record('admin_booking_deleted', ['user_id' => $request->userId(), 'email' => $booking['email'] ?? null, 'booking_id' => $id, 'ip' => BookingController::clientIp(), 'detail' => 'usunięto rezerwację (' . ($booking['event_date'] ?? '') . ')']);
         // FK przy bookings: CASCADE (personalizacje, umowy, płatności, historia, czat) / SET NULL (oferty, kolejki).
         Database::execute('DELETE FROM bookings WHERE id = ?', [$id]);
         return Response::json(['ok' => true]);

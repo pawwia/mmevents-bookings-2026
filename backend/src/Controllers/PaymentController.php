@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
+use App\Services\ActivityLog;
 use App\Services\BookingService;
 use App\Services\PayNowService;
 
@@ -35,6 +36,7 @@ class PaymentController
             'status' => 'pending',
             'paynow_payment_id' => $payment['payment_id'],
         ]);
+        ActivityLog::record('payment_started', ['user_id' => $request->userId(), 'booking_id' => $booking['id'], 'ip' => BookingController::clientIp(), 'detail' => 'PayNow — zadatek ' . $booking['deposit_amount'] . ' zł']);
         return Response::json(['redirect_url' => $payment['redirect_url']]);
     }
 }
