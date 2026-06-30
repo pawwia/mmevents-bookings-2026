@@ -24,6 +24,7 @@ import SettingsIcon from '@mui/icons-material/SettingsOutlined';
 import HistoryIcon from '@mui/icons-material/HistoryOutlined';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLongOutlined';
 import Logo from '../common/Logo';
+import ChatNotifications from './ChatNotifications';
 import { useAuthStore } from '../../store/authStore';
 
 const WIDTH = 248;
@@ -103,6 +104,7 @@ export default function AdminLayout() {
             CRM
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
+          <ChatNotifications />
           <Typography variant="body2" color="text.secondary" sx={{ mr: 2, display: { xs: 'none', sm: 'block' } }}>
             {user?.first_name} {user?.last_name}
           </Typography>
