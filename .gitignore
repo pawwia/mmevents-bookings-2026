@@ -14,6 +14,10 @@ backend/storage/logs/*
 !backend/storage/logs/.gitkeep
 backend/public/uploads/
 
+# Dump starej bazy do importu — dane osobowe klientów, NIGDY do gita
+database/legacy/*
+!database/legacy/README.md
+
 # System / edytor
 .DS_Store
 Thumbs.db
