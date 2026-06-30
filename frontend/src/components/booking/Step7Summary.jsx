@@ -8,7 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useBookingWizard } from '../../store/bookingWizardStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { formatPrice, formatDate, EVENT_TYPES } from '../../utils/format';
-import { trackPurchase } from '../../utils/tracking';
+import { trackPurchase, pushDataLayer } from '../../utils/tracking';
 import WizardNav from './WizardNav';
 
 function Row({ label, value, strong = false, color }) {
@@ -31,6 +31,7 @@ export default function Step7Summary() {
   const { token } = useAuthStore();
   const settings = useSettingsStore((s) => s.settings);
   const [error, setError] = useState('');
+  const [discountMsg, setDiscountMsg] = useState(''); // komunikat o kodzie rabatowym — osobno od błędów rezerwacji
   const [submitting, setSubmitting] = useState(false);
   const [codeInput, setCodeInput] = useState(discountCode);
   const [eventType, setEventType] = useState('wesele');
@@ -56,8 +57,10 @@ export default function Step7Summary() {
           guestbook,
           discount_code: code || null,
         });
-        set({ quote: data, discountCode: code || '' });
-        setError(data.discount_error || '');
+        // Zły kod nie może blokować rezerwacji: zapisujemy tylko poprawny kod,
+        // błędny zgłaszamy osobnym komunikatem i nie wysyłamy go przy tworzeniu rezerwacji.
+        set({ quote: data, discountCode: data.discount_error ? '' : code || '' });
+        setDiscountMsg(data.discount_error || '');
       } catch (e) {
         setError(apiError(e));
       }
@@ -112,6 +115,15 @@ export default function Step7Summary() {
       });
       set({ result: data });
       trackPurchase({ id: data.booking_id, value: data.total_price, currency: 'PLN' });
+      // Konwersja „rezerwacja złożona" do GTM — wyłącznie po poprawnym zapisaniu rezerwacji.
+      pushDataLayer('booking_confirm', {
+        booking_id: data.booking_id,
+        value: data.total_price,
+        currency: 'PLN',
+        requires_manual_confirmation: !!data.requires_manual_confirmation,
+        requires_individual_quote: !!data.requires_individual_quote,
+        source: 'wizard',
+      });
       next(); // KROK 8 — umowa / potwierdzenie
     } catch (e) {
       setError(apiError(e));
@@ -208,6 +220,17 @@ export default function Step7Summary() {
           Zastosuj
         </Button>
       </Stack>
+      {discountMsg ? (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {discountMsg} — rezerwację możesz złożyć bez rabatu.
+        </Alert>
+      ) : (
+        quote.discount_amount > 0 && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            Kod rabatowy zastosowany (−{formatPrice(quote.discount_amount)}).
+          </Alert>
+        )
+      )}
 
       <Divider sx={{ my: 2 }} />
       <FormControlLabel

@@ -14,7 +14,7 @@ import { useAuthStore } from '../../store/authStore';
 import GoogleLoginButton from '../../components/common/GoogleLoginButton';
 import { PASSWORD_HINT, isStrongPassword } from '../../utils/password';
 import { formatDate, formatPrice, formatTime } from '../../utils/format';
-import { trackPurchase } from '../../utils/tracking';
+import { trackPurchase, pushDataLayer } from '../../utils/tracking';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -401,6 +401,13 @@ function DataStage({ token, variantId, offer, onResult }) {
         terms_accepted: consent,
       });
       trackPurchase({ id: data.booking_id, value: data.total_price, currency: 'PLN', source: 'offer' });
+      // Konwersja „rezerwacja złożona" do GTM — akceptacja oferty również tworzy rezerwację.
+      pushDataLayer('booking_confirm', {
+        booking_id: data.booking_id,
+        value: data.total_price,
+        currency: 'PLN',
+        source: 'offer',
+      });
       onResult(data);
     } catch (e) {
       setError(apiError(e));

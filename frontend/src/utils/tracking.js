@@ -28,6 +28,24 @@ export function setConsent(granted) {
   }
 }
 
+/** Zdarzenie okna: prośba o ponowne pokazanie modala zgody (link „Ustawienia cookies"). */
+export const CONSENT_REOPEN_EVENT = 'mmevents:open-consent';
+
+/** Czy skrypty śledzące zostały już załadowane w tej sesji (do decyzji o przeładowaniu). */
+export function isTrackingInitialized() {
+  return initialized;
+}
+
+/** Kasuje zapisaną decyzję i prosi modal zgody o ponowne pokazanie. */
+export function openConsentSettings() {
+  try {
+    localStorage.removeItem(CONSENT_KEY);
+  } catch {
+    /* brak localStorage — pomijamy */
+  }
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(CONSENT_REOPEN_EVENT));
+}
+
 export function initTracking(settings) {
   if (initialized || typeof window === 'undefined') return;
   const gtm = settings['analytics.gtm_id'];
@@ -107,6 +125,18 @@ export function trackEventOnce(name, params = {}) {
     /* brak sessionStorage — wyślij mimo to */
   }
   trackEvent(name, params);
+}
+
+/**
+ * Zdarzenie konwersji wysyłane WYŁĄCZNIE do dataLayer (Google Tag Manager).
+ * Świadomie nie dotykamy tu window.gtag ani window.fbq — mapowanie na konwersje
+ * Google Ads / Meta Ads konfigurujemy w GTM, nie w komponentach (patrz audyt konwersji).
+ * Działa też zanim GTM się załaduje: push trafia do kolejki dataLayer i zostaje przetworzony.
+ */
+export function pushDataLayer(event, params = {}) {
+  if (typeof window === 'undefined') return;
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ event, ...params });
 }
 
 /** Zakup (standardowe: FB Purchase, GA4 purchase) — np. po złożeniu rezerwacji. */

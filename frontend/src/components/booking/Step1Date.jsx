@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import { api, apiError } from '../../api/client';
 import { useBookingWizard } from '../../store/bookingWizardStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import { trackEventOnce } from '../../utils/tracking';
+import { trackEventOnce, pushDataLayer } from '../../utils/tracking';
 import Turnstile from '../common/Turnstile';
 import WizardNav from './WizardNav';
 
@@ -44,6 +44,8 @@ export default function Step1Date() {
         set({ availability: data });
         setHumanVerified(true); // serwer zaufał temu IP — kolejne sprawdzenia bez nowego tokenu
         trackEventOnce('CheckAvailability', { available: !!data.available });
+        // Konwersja „sprawdzenie terminu" do GTM — wyłącznie po realnym sprawdzeniu przez użytkownika.
+        pushDataLayer('booking_check', { event_date: date, available: !!data.available });
       } catch (e) {
         if (e?.response?.status === 403) {
           // Wygasła weryfikacja / brak tokenu → poproś Cloudflare o świeży i ponów po jego przejściu.
