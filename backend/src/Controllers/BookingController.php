@@ -8,6 +8,7 @@ use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Validator;
+use App\Services\ActivityLog;
 use App\Services\AvailabilityService;
 use App\Services\BookingService;
 use App\Services\ContractService;
@@ -212,6 +213,14 @@ class BookingController
         // Powiadomienie właściciela o nowej rezerwacji
         BookingService::notifyOwner($bookingId);
 
+        ActivityLog::record('booking_created', [
+            'user_id' => $request->userId(),
+            'email' => $booking['email'] ?? null,
+            'booking_id' => $bookingId,
+            'ip' => self::clientIp(),
+            'detail' => trim(($booking['event_date'] ?? '') . ' ' . ($individualQuote ? '(wycena indywidualna)' : ($requiresManual ? '(zapytanie)' : ''))),
+        ]);
+
         return Response::json([
             'booking_id' => $bookingId,
             'status' => $booking['status'],
@@ -227,6 +236,12 @@ class BookingController
     /** Adres IP klienta (uwzględnia proxy LH.pl). */
     public static function clientIp(): string
     {
+        // Za Cloudflare prawdziwy IP klienta jest w CF-Connecting-IP. Bez tego limity (logowanie,
+        // reset hasła) liczyłyby się na adresie Cloudflare — wspólnym dla wszystkich gości.
+        $cf = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? '';
+        if ($cf !== '') {
+            return trim($cf);
+        }
         $forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
         if ($forwarded !== '') {
             return trim(explode(',', $forwarded)[0]);
@@ -299,7 +314,18 @@ class BookingController
         if ($booking['guestbook'] !== 'personalized') {
             unset($fields['guestbook_design_id'], $fields['guestbook_names'], $fields['guestbook_date']);
         }
+        // Rezerwacje zakładane w kreatorze mają wiersz personalizacji od razu, ale zaimportowane
+        // ze starego systemu — nie. Bez tego UPDATE trafiałby w 0 wierszy (zapis „znikał" mimo ok).
+        if (Database::selectOne('SELECT id FROM booking_personalizations WHERE booking_id = ?', [$booking['id']]) === null) {
+            Database::insert('booking_personalizations', ['booking_id' => $booking['id']]);
+        }
         Database::update('booking_personalizations', $fields, 'booking_id = ?', [$booking['id']]);
+        ActivityLog::record('personalization_update', [
+            'user_id' => $request->userId(),
+            'booking_id' => $booking['id'],
+            'ip' => self::clientIp(),
+            'detail' => 'zmieniono: ' . (implode(', ', array_keys($fields)) ?: '—'),
+        ]);
         return Response::json(['ok' => true]);
     }
 
