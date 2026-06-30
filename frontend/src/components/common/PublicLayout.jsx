@@ -5,6 +5,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import Logo from './Logo';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { openConsentSettings } from '../../utils/tracking';
 
 export default function PublicLayout() {
   const { token, user, logout } = useAuthStore();
@@ -99,6 +100,16 @@ export default function PublicLayout() {
               </Link>
               <Link component={RouterLink} to="/regulamin" variant="body2" color="text.secondary">
                 Regulamin
+              </Link>
+              <Link
+                component="button"
+                type="button"
+                onClick={openConsentSettings}
+                variant="body2"
+                color="text.secondary"
+                sx={{ cursor: 'pointer' }}
+              >
+                Ustawienia cookies
               </Link>
             </Box>
           </Box>
