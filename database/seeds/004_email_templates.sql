@@ -39,5 +39,5 @@ INSERT INTO email_templates (code, name, subject, body, variables) VALUES
 '["imie","data_imprezy","link_galerii","prosba_o_opinie","stopka"]'),
 
 ('review_request', 'Prośba o opinię (fragment)', '—',
-'<p>Będzie nam bardzo miło, jeśli zostawisz nam opinię w Google — to dla nas ogromne wsparcie: <a href="{{link_opinii}}">zostaw opinię</a>.</p>',
-'["link_opinii"]');
+'<p>Mamy nadzieję, że bawiliście się wyśmienicie! 🎉 Będzie nam ogromnie miło, jeśli poświęcisz chwilę i zostawisz nam opinię — to dla nas największe wsparcie:</p><p style="text-align:center;margin:22px 0;"><a href="https://share.google/soKiNIv4cre1KqRCJ" style="display:inline-block;margin:6px;padding:12px 24px;background:#4285F4;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;">⭐ Opinia w Google</a><a href="https://www.facebook.com/mmevents.fotolustro/reviews/?id=100075936099422&amp;sk=reviews" style="display:inline-block;margin:6px;padding:12px 24px;background:#1877F2;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;">👍 Opinia na Facebooku</a></p>',
+'[]');
