@@ -55,6 +55,8 @@ $router->post('/api/auth/register', [AuthController::class, 'register']);
 $router->post('/api/auth/login', [AuthController::class, 'login']);
 $router->post('/api/auth/google', [AuthController::class, 'googleLogin']);
 $router->post('/api/auth/verify', [AuthController::class, 'verifyEmail']);
+$router->post('/api/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+$router->post('/api/auth/reset-password', [AuthController::class, 'resetPassword']);
 $router->post('/api/auth/resend-verification', [AuthController::class, 'resendVerification'], $auth);
 $router->get('/api/auth/me', [AuthController::class, 'me'], $auth);
 $router->put('/api/auth/profile', [AuthController::class, 'updateProfile'], $auth);
@@ -168,6 +170,7 @@ $router->get('/api/admin/logs', [AdminLogController::class, 'index'], $admin);
 $router->get('/api/admin/logs/emails', [AdminLogController::class, 'emails'], $admin);
 $router->get('/api/admin/logs/sms', [AdminLogController::class, 'sms'], $admin);
 $router->get('/api/admin/logs/system', [AdminLogController::class, 'systemLog'], $admin);
+$router->get('/api/admin/logs/activity', [AdminLogController::class, 'activity'], $admin);
 $router->post('/api/admin/logs/process-queue', [AdminLogController::class, 'processQueue'], $admin);
 $router->post('/api/admin/logs/retry-failed', [AdminLogController::class, 'retryFailed'], $admin);
 

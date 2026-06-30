@@ -317,6 +317,11 @@ class SigningController
 
     private function clientIp(): string
     {
+        // Za Cloudflare prawdziwy IP klienta jest w CF-Connecting-IP (patrz BookingController::clientIp).
+        $cf = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? '';
+        if ($cf !== '') {
+            return trim($cf);
+        }
         $forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
         if ($forwarded !== '') {
             return trim(explode(',', $forwarded)[0]);

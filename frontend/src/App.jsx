@@ -22,6 +22,8 @@ import MyBookingsPage from './pages/client/MyBookingsPage';
 import ClientBookingDetailPage from './pages/client/BookingDetailPage';
 import ProfilePage from './pages/client/ProfilePage';
 import VerifyEmailPage from './pages/public/VerifyEmailPage';
+import ForgotPasswordPage from './pages/public/ForgotPasswordPage';
+import ResetPasswordPage from './pages/public/ResetPasswordPage';
 import PrivacyPolicyPage from './pages/public/PrivacyPolicyPage';
 import TermsPage from './pages/public/TermsPage';
 import Analytics from './components/common/Analytics';
@@ -92,6 +94,8 @@ export default function App() {
             <Route path="/rejestracja" element={<RegisterPage />} />
             <Route path="/oferta/:token" element={<OfferPage />} />
             <Route path="/weryfikacja/:token" element={<VerifyEmailPage />} />
+            <Route path="/przypomnij-haslo" element={<ForgotPasswordPage />} />
+            <Route path="/reset-hasla/:token" element={<ResetPasswordPage />} />
             <Route path="/polityka-prywatnosci" element={<PrivacyPolicyPage />} />
             <Route path="/regulamin" element={<TermsPage />} />
           </Route>

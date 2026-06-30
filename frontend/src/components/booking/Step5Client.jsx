@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
-  Alert, Box, Button, CircularProgress, Divider, Grid, Stack, TextField,
+  Alert, Box, Button, CircularProgress, Divider, Grid, Link, Stack, TextField,
   ToggleButton, ToggleButtonGroup, Typography,
 } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { api, apiError } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
@@ -159,16 +160,22 @@ function AuthStage({ onAuthenticated, setAuth }) {
               <Alert severity="info">Masz już u nas konto — podaj hasło, aby się zalogować.</Alert>
             )}
             {!googleOnly && (
-              <TextField
-                label="Hasło"
-                type="password"
-                fullWidth
-                autoFocus
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={onKeyDown}
-                InputLabelProps={{ shrink: true }}
-              />
+              <>
+                <TextField
+                  label="Hasło"
+                  type="password"
+                  fullWidth
+                  autoFocus
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={onKeyDown}
+                  InputLabelProps={{ shrink: true }}
+                />
+                {/* Otwieramy reset w nowej karcie, by nie zgubić postępu kreatora. */}
+                <Link component={RouterLink} to="/przypomnij-haslo" target="_blank" rel="noopener" sx={{ alignSelf: 'flex-end' }}>
+                  Nie pamiętasz hasła?
+                </Link>
+              </>
             )}
             <Stack direction="row" spacing={1}>
               <Button onClick={resetToEmail} disabled={loading}>

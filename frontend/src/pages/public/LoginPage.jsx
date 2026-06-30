@@ -65,6 +65,11 @@ export default function LoginPage() {
           </Button>
         </Stack>
       </form>
+      <Typography variant="body2" sx={{ mt: 2, textAlign: 'right' }}>
+        <Link component={RouterLink} to="/przypomnij-haslo">
+          Nie pamiętasz hasła?
+        </Link>
+      </Typography>
       <Divider sx={{ my: 3 }}>lub</Divider>
       <GoogleLoginButton onSuccess={afterLogin} onError={setError} />
       <Typography variant="body2" sx={{ mt: 3, textAlign: 'center' }}>

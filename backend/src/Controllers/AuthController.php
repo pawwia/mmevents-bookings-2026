@@ -8,6 +8,7 @@ use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Validator;
+use App\Services\ActivityLog;
 use App\Services\CloudflareService;
 use App\Services\GoogleAuthService;
 use App\Services\JwtService;
@@ -56,30 +57,39 @@ class AuthController
         Database::insert('client_profiles', ['user_id' => $userId]);
         $user = Database::selectOne('SELECT * FROM users WHERE id = ?', [$userId]);
         self::sendVerificationEmail($user); // e-mail aktywacyjny
+        ActivityLog::record('account_created', ['user_id' => $userId, 'email' => $user['email'], 'ip' => BookingController::clientIp(), 'detail' => 'rejestracja e-mail/hasło']);
         return Response::json(['token' => JwtService::issue($user), 'user' => self::publicUser($user)], 201);
     }
 
     public function login(Request $request): Response
     {
         $ip = BookingController::clientIp();
+        $email = strtolower(trim((string) $request->input('email')));
         $wait = RateLimitService::blockedFor('login', $ip);
         if ($wait > 0) {
+            ActivityLog::record('login_blocked', ['email' => $email, 'ip' => $ip, 'detail' => 'IP zablokowane na ' . self::humanWait($wait)]);
             return Response::error('Zbyt wiele prób logowania. Spróbuj ponownie za ' . self::humanWait($wait) . '.', 429);
         }
         if (!CloudflareService::verify($request->input('cf_token'), $ip)) {
             return Response::error('Potwierdź, że nie jesteś robotem (Cloudflare).', 403);
         }
-        $user = Database::selectOne('SELECT * FROM users WHERE email = ?', [strtolower(trim((string) $request->input('email')))]);
+        $user = Database::selectOne('SELECT * FROM users WHERE email = ?', [$email]);
         if ($user === null || !$user['password_hash']
             || !password_verify((string) $request->input('password'), $user['password_hash'])) {
             // Licznik tylko dla nieudanych prób; po 10 → blokada 15 min, kolejne → 1 h.
             RateLimitService::register('login', $ip, 10, [900, 3600]);
+            ActivityLog::record('login_fail', [
+                'email' => $email, 'ip' => $ip,
+                'detail' => $user === null ? 'brak konta dla tego adresu' : 'błędne hasło',
+            ]);
             return Response::error('Nieprawidłowy e-mail lub hasło', 401);
         }
         if (!(int) $user['is_active']) {
+            ActivityLog::record('login_fail', ['user_id' => $user['id'], 'email' => $email, 'ip' => $ip, 'detail' => 'konto nieaktywne']);
             return Response::error('Konto jest nieaktywne', 403);
         }
         RateLimitService::clear('login', $ip); // udane logowanie zeruje licznik
+        ActivityLog::record('login_ok', ['user_id' => $user['id'], 'email' => $email, 'ip' => $ip]);
         return Response::json(['token' => JwtService::issue($user), 'user' => self::publicUser($user)]);
     }
 
@@ -110,12 +120,14 @@ class AuthController
             ]);
             Database::insert('client_profiles', ['user_id' => $userId]);
             $user = Database::selectOne('SELECT * FROM users WHERE id = ?', [$userId]);
+            ActivityLog::record('account_created', ['user_id' => $userId, 'email' => $user['email'], 'ip' => BookingController::clientIp(), 'detail' => 'rejestracja przez Google']);
         } elseif (!$user['google_id']) {
             Database::update('users', ['google_id' => $profile['google_id']], 'id = ?', [$user['id']]);
         }
         if (!(int) $user['is_active']) {
             return Response::error('Konto jest nieaktywne', 403);
         }
+        ActivityLog::record('login_ok', ['user_id' => $user['id'], 'email' => $user['email'], 'ip' => BookingController::clientIp(), 'detail' => 'Google']);
         return Response::json(['token' => JwtService::issue($user), 'user' => self::publicUser($user)]);
     }
 
@@ -152,6 +164,7 @@ class AuthController
         // w trybie deweloperskim / skaner poczty) także zakończy się sukcesem.
         if (empty($user['email_verified_at'])) {
             Database::update('users', ['email_verified_at' => date('Y-m-d H:i:s')], 'id = ?', [$user['id']]);
+            ActivityLog::record('email_verified', ['user_id' => $user['id'], 'ip' => BookingController::clientIp()]);
         }
         return Response::json(['ok' => true]);
     }
@@ -168,6 +181,84 @@ class AuthController
         }
         self::sendVerificationEmail($user);
         return Response::json(['ok' => true]);
+    }
+
+    /** Ile godzin jest ważny link resetu hasła. */
+    private const RESET_TOKEN_TTL_HOURS = 1;
+
+    /**
+     * Krok 1 resetu hasła — klient podaje e-mail, wysyłamy link z tokenem (publiczne).
+     * Antyenumeracja: zawsze odpowiadamy tak samo, niezależnie czy konto istnieje.
+     */
+    public function forgotPassword(Request $request): Response
+    {
+        $email = strtolower(trim((string) $request->input('email', '')));
+        // Neutralna odpowiedź — nie zdradzamy, czy adres ma konto.
+        $neutral = Response::json(['ok' => true]);
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $neutral;
+        }
+        // Limit liczymy PER E-MAIL, nie per IP. Inaczej klienci za wspólnym IP (sieć komórkowa /
+        // CGNAT / Cloudflare) blokowaliby się nawzajem — jeden wyczerpywał limit dla wszystkich.
+        $ip = BookingController::clientIp();
+        $wait = RateLimitService::blockedFor('password_reset', $email);
+        if ($wait > 0) {
+            ActivityLog::record('reset_blocked', ['email' => $email, 'ip' => $ip, 'detail' => 'limit prób dla adresu']);
+            return Response::error('Wysłaliśmy już link na ten adres. Sprawdź skrzynkę (i spam), a kolejną próbę ponów za ' . self::humanWait($wait) . '.', 429);
+        }
+        RateLimitService::register('password_reset', $email, 5, [900, 3600]);
+        $user = Database::selectOne('SELECT * FROM users WHERE email = ?', [$email]);
+        if ($user === null || !(int) $user['is_active']) {
+            // Logujemy też próby na nieistniejący/nieaktywny adres — pomaga, gdy klient wpisuje zły e-mail.
+            ActivityLog::record('reset_request', ['email' => $email, 'ip' => $ip, 'detail' => $user === null ? 'brak konta dla tego adresu' : 'konto nieaktywne']);
+            return $neutral;
+        }
+
+        $token = bin2hex(random_bytes(32));
+        Database::update('users', [
+            'password_reset_token' => $token,
+            'password_reset_expires_at' => date('Y-m-d H:i:s', time() + self::RESET_TOKEN_TTL_HOURS * 3600),
+        ], 'id = ?', [$user['id']]);
+
+        MailerService::queueEmail('password_reset', $user['email'], $user['first_name'] ?? null, [
+            'imie' => $user['first_name'] ?: 'Kliencie',
+            'link_resetu' => SettingsService::frontendUrl() . '/reset-hasla/' . $token,
+            'waznosc' => self::RESET_TOKEN_TTL_HOURS . ' godz.',
+            'stopka' => nl2br((string) SettingsService::get('company.email_footer', '')),
+        ]);
+        ActivityLog::record('reset_request', ['user_id' => $user['id'], 'email' => $email, 'ip' => $ip, 'detail' => 'link wysłany']);
+        return $neutral;
+    }
+
+    /** Krok 2 resetu hasła — klient ustawia nowe hasło na podstawie tokenu z e-maila (publiczne). */
+    public function resetPassword(Request $request): Response
+    {
+        $v = Validator::make($request->all(), [
+            'token' => 'required',
+            'password' => 'required|password',
+        ]);
+        if ($v->fails()) {
+            return Response::error('Błędne dane', 422, $v->errors());
+        }
+        $user = Database::selectOne(
+            'SELECT * FROM users WHERE password_reset_token = ? AND password_reset_expires_at > NOW()',
+            [trim((string) $request->input('token'))]
+        );
+        if ($user === null) {
+            ActivityLog::record('reset_fail', ['ip' => BookingController::clientIp(), 'detail' => 'token nieprawidłowy lub wygasły']);
+            return Response::error('Link do resetu hasła jest nieprawidłowy lub wygasł. Poproś o nowy.', 422);
+        }
+        Database::update('users', [
+            'password_hash' => password_hash((string) $request->input('password'), PASSWORD_BCRYPT),
+            'password_reset_token' => null,
+            'password_reset_expires_at' => null,
+            // Reset z linku w mailu dowodzi dostępu do skrzynki — przy okazji aktywujemy konto.
+            'email_verified_at' => $user['email_verified_at'] ?: date('Y-m-d H:i:s'),
+        ], 'id = ?', [$user['id']]);
+
+        $fresh = Database::selectOne('SELECT * FROM users WHERE id = ?', [$user['id']]);
+        ActivityLog::record('reset_done', ['user_id' => $user['id'], 'email' => $user['email'], 'ip' => BookingController::clientIp(), 'detail' => 'nowe hasło ustawione']);
+        return Response::json(['token' => JwtService::issue($fresh), 'user' => self::publicUser($fresh)]);
     }
 
     public function me(Request $request): Response
@@ -196,6 +287,12 @@ class AuthController
         if ($profileFields) {
             Database::update('client_profiles', $profileFields, 'user_id = ?', [$request->userId()]);
         }
+        if ($userFields || $profileFields) {
+            ActivityLog::record('profile_updated', [
+                'user_id' => $request->userId(), 'email' => $request->user['email'] ?? null, 'ip' => BookingController::clientIp(),
+                'detail' => 'zmieniono: ' . implode(', ', array_keys($userFields + $profileFields)),
+            ]);
+        }
         return $this->me($request);
     }
 
@@ -213,6 +310,7 @@ class AuthController
         Database::update('users', [
             'password_hash' => password_hash((string) $request->input('password'), PASSWORD_BCRYPT),
         ], 'id = ?', [$request->userId()]);
+        ActivityLog::record('password_changed', ['user_id' => $request->userId(), 'email' => $request->user['email'] ?? null, 'ip' => BookingController::clientIp(), 'detail' => 'zmiana z panelu (zalogowany)']);
         return Response::json(['ok' => true]);
     }
 
